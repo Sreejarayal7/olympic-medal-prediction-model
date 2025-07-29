@@ -1,6 +1,8 @@
 # olympic-medal-prediction-model
 
 Project Overview
+
+
 This project implements a simple linear regression model to predict the number of Olympic medals a country is likely to win. The prediction is based on two key factors: the number of athletes a country sends to the Olympics and their previous medal performance.
 
 The goal is to provide a straightforward example of a machine learning workflow, from data loading and cleaning to model training, prediction, and evaluation.
