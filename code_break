@@ -1,0 +1,184 @@
+
+
+Explanation of the Code
+This code performs a basic linear regression to predict the number of Olympic medals a country will win based on the number of athletes they send and their previous medal count.
+
+Import Libraries:
+
+
+
+import pandas as pd
+# import seaborn as sns # This line is commented out in your provided code, but used later for sns.lmplot
+import numpy as np # Used later for np.isfinite
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_absolute_error
+
+(pandas (pd): Used for data manipulation and analysis, especially with DataFrames.
+
+seaborn (sns): (Implicitly used) A statistical data visualization library, often used for creating informative and attractive statistical graphics. You would typically need import seaborn as sns at the top of your script if you were running these lines.
+
+numpy (np): Used for numerical operations, especially array manipulation.
+
+sklearn.linear_model.LinearRegression: Implements the linear regression model.
+
+sklearn.metrics.mean_absolute_error: Used to evaluate the performance of the regression model.)
+
+Load Data:
+
+Python
+
+teams = pd.read_csv(r"C:\Users\bvrao\Downloads\teams.csv")
+Reads a CSV file named teams.csv into a pandas DataFrame called teams. The r before the path indicates a raw string, which is good practice for file paths to avoid issues with backslashes.
+
+Select Relevant Columns:
+
+Python
+
+teams = teams[["team","country","year","athletes","age","prev_medals","medals"]]
+Selects a subset of columns from the teams DataFrame that are relevant for the analysis. This ensures you're only working with the data you need.
+
+Explore Correlations (Optional but Good Practice):
+
+Python
+
+teams.corr(numeric_only=True)["medals"]
+Calculates the correlation matrix for the numeric columns in the teams DataFrame.
+
+numeric_only=True ensures that only numeric columns are considered for correlation.
+
+["medals"] then selects only the correlations with the "medals" column, giving an idea of which features are most related to medal count. A higher absolute correlation value (closer to 1 or -1) indicates a stronger linear relationship.
+
+Visualize Relationships (Using Seaborn - requires seaborn import):
+
+Python
+
+# sns.lmplot(x="athletes",y="medals",data=teams,fit_reg=True,ci=None)
+# sns.lmplot(x="age",y="medals",data=teams,fit_reg=True,ci=None)
+These lines, if uncommented and with seaborn imported, would use seaborn.lmplot to create scatter plots with a linear regression line.
+
+The first plot visualizes the relationship between "athletes" and "medals". You'd expect a positive correlation here (more athletes usually means more medals).
+
+The second plot visualizes the relationship between "age" and "medals".
+
+fit_reg=True draws a regression line.
+
+ci=None removes the confidence interval around the regression line, making the plot cleaner.
+
+Visualize Medal Distribution:
+
+Python
+
+teams.plot.hist(y="medals")
+Creates a histogram of the "medals" column, showing the frequency distribution of medal counts. This helps understand the typical number of medals won by countries.
+
+Handle Missing Values:
+
+Python
+
+teams[teams.isnull().any(axis=1)]
+teams=teams.dropna()
+teams
+teams[teams.isnull().any(axis=1)]: This line identifies rows that contain any missing (NaN) values across their columns. It's a good step for inspecting what you're about to drop.
+
+teams=teams.dropna(): This line removes all rows from the teams DataFrame that contain any missing values. This is crucial for machine learning models as they generally cannot handle NaN values directly.
+
+Split Data into Training and Testing Sets:
+
+Python
+
+train = teams[teams["year"]<2012].copy()
+test = teams[teams["year"]>=2012].copy()
+train.shape
+test.shape
+The data is split based on the "year" column. This is a common time-series split approach, where you train on older data and test on newer data to simulate real-world prediction scenarios.
+
+train: Contains data from years before 2012. This data will be used to train the linear regression model.
+
+test: Contains data from 2012 and later. This data will be used to evaluate the model's performance on unseen data.
+
+.copy() is important to prevent SettingWithCopyWarning later when modifying train or test DataFrames, ensuring you're working on independent copies.
+
+train.shape and test.shape display the dimensions (rows, columns) of the resulting training and testing sets.
+
+Initialize and Train Linear Regression Model:
+
+Python
+
+from sklearn.linear_model import LinearRegression
+reg = LinearRegression()
+predictors =["athletes","prev_medals"]
+target="medals"
+reg.fit(train[predictors],train["medals"])
+reg = LinearRegression(): Creates an instance of the Linear Regression model. This model finds the best-fitting linear equation to describe the relationship between the predictors and the target.
+
+predictors =["athletes","prev_medals"]: Defines the features (independent variables) that will be used to predict the target. These are the columns you believe influence the number of medals.
+
+target="medals": Defines the target variable (dependent variable) that the model will try to predict.
+
+reg.fit(train[predictors],train["medals"]): This is the core training step. The model learns the relationship between predictors and medals from the train data. It calculates the coefficients for each predictor.
+
+Make Predictions:
+
+Python
+
+predictions= reg.predict(test[predictors])
+test["predictions"]=predictions
+predictions= reg.predict(test[predictors]): Uses the trained model (reg) to make predictions on the test data using the predictors. The model applies the learned linear equation to the test data's features.
+
+test["predictions"]=predictions: Adds the generated predictions as a new column named "predictions" to the test DataFrame, allowing for easy comparison with actual values.
+
+Post-processing Predictions:
+
+Python
+
+test.loc[test["predictions"]<0,"predictions"]=0
+test["predictions"]=test["predictions"].round()
+test.loc[test["predictions"]<0,"predictions"]=0: Since medal counts cannot be negative, any negative predictions generated by the linear model are explicitly set to 0. This is a common practice for count data or non-negative targets.
+
+test["predictions"]=test["predictions"].round(): Rounds the predictions to the nearest whole number, as medal counts are integers. This makes the predictions more realistic.
+
+Evaluate Model Performance:
+
+Python
+
+from sklearn.metrics import mean_absolute_error
+error = mean_absolute_error(test["medals"],test["predictions"])
+error
+Calculates the Mean Absolute Error (MAE) between the actual "medals" in the test set and the model's "predictions". MAE measures the average magnitude of the errors in a set of predictions, without considering their direction. A lower MAE indicates better model accuracy.
+
+Further Analysis of Errors:
+
+Python
+
+teams.describe()["medals"]
+test[test["team"]== "USA"]
+test[test["team"] == "IND"]
+errors = (test["medals"]-test["predictions"]).abs()
+errors
+error_by_team = errors.groupby(test["team"]).mean()
+error_by_team
+medals_by_team = test["medals"].groupby(test["team"]).mean()
+error_ratio= error_by_team/medals_by_team
+error_ratio
+error_ratio[~pd.isnull(error_ratio)] # Filter out NaN values
+error_ratio = error_ratio[np.isfinite(error_ratio)] # Filter out infinite values
+error_ratio
+error_ratio.plot.hist()
+error_ratio.sort_values()
+teams.describe()["medals"]: Provides descriptive statistics (mean, std, min, max, etc.) for the "medals" column from the original teams DataFrame. This gives context to the MAE.
+
+test[test["team"]== "USA"] and test[test["team"] == "IND"]: Shows the actual and predicted medal counts for specific countries (USA and India) in the test set. This allows for qualitative inspection of performance for individual cases.
+
+errors = (test["medals"]-test["predictions"]).abs(): Calculates the absolute difference between actual and predicted medals for each entry in the test set.
+
+error_by_team = errors.groupby(test["team"]).mean(): Groups the absolute errors by team and calculates the average error for each team. This helps identify which teams the model struggles with most.
+
+medals_by_team = test["medals"].groupby(test["team"]).mean(): Groups the actual medal counts by team and calculates the average actual medals for each team.
+
+error_ratio= error_by_team/medals_by_team: Calculates the ratio of the average error to the average actual medals for each team. This is a normalized error measure (e.g., 0.1 means the average error is 10% of the average actual medals for that team). It's useful for comparing performance across teams with very different medal counts.
+
+error_ratio[~pd.isnull(error_ratio)] and error_ratio = error_ratio[np.isfinite(error_ratio)]: Removes any NaN (Not a Number) or infinite values that might result from division by zero (e.g., if a team had no actual medals, medals_by_team would be 0, leading to an infinite ratio if error_by_team is non-zero).
+
+error_ratio.plot.hist(): Plots a histogram of the error ratios to see their distribution. This helps understand if errors are generally small or if there are many large relative errors.
+
+error_ratio.sort_values(): Sorts the error ratios to easily identify which teams have the highest/lowest relative errors.
